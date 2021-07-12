@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="com.kkl.kklplus.b2b.jdhome.mapper.PicUploadMapper">
+
+    <insert id="insert" keyProperty="id" useGeneratedKeys="true">
+          INSERT INTO jd_home_pic_upload(
+            b2b_order_id,
+            order_no,
+            kkl_picture_url,
+            jd_picture_url,
+			create_by,
+			create_date,
+			update_by,
+			quarter
+		) VALUES (
+			#{b2bOrderId},
+			#{orderNo},
+			#{kklPictureUrl},
+			#{jdPictureUrl},
+			#{createById},
+			#{createDt},
+			#{updateById},
+			#{quarter}
+		)
+    </insert>
+
+	<insert id="batchInsert" keyProperty="id" useGeneratedKeys="true">
+		INSERT INTO jd_home_pic_upload(
+		b2b_order_id,
+		order_no,
+		kkl_picture_url,
+		jd_picture_url,
+		create_by,
+		create_date,
+		update_by,
+		update_date,
+		quarter
+		)VALUES
+		<foreach collection="list" item="item" separator="," >
+			(
+			#{item.b2bOrderId},
+			#{item.orderNo},
+			#{item.kklPictureUrl},
+			#{item.jdPictureUrl},
+			#{item.createById},
+			#{item.createDt},
+			#{item.updateById},
+			#{item.updateDt},
+			#{item.quarter}
+			)
+		</foreach>
+
+	</insert>
+
+
+	<update id="updateProcessFlag">
+		UPDATE
+		jd_home_pic_upload
+		SET
+		process_flag    = #{processFlag},
+		update_date     = #{updateDt}
+		<if test="processComment != null and processComment != ''">
+			,process_comment = #{processComment}
+		</if>
+		WHERE
+		id= #{id}
+	</update>
+</mapper>

@@ -1,0 +1,15 @@
+package com.kkl.kklplus.b2b.jdhome;
+
+import lombok.extern.slf4j.Slf4j;
+import org.junit.runner.RunWith;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.junit4.SpringRunner;
+
+@Slf4j
+@SpringBootTest
+@RunWith(SpringRunner.class)
+@ActiveProfiles("dev")
+public class B2BJDHomeApplicationTests {
+
+}

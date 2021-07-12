@@ -1,0 +1,216 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="com.kkl.kklplus.b2b.jdhome.mapper.OrderInfoMapper">
+    <insert id="insert" keyProperty="id" useGeneratedKeys="true">
+        insert into jd_home_order_info(
+			order_no,
+            sale_order_no,
+            service_type_name,
+            service_type_code,
+            company_name,
+            brand_name,
+            brand_id,
+            user_name,
+            user_mobile,
+            user_province,
+            user_city,
+            user_county,
+            user_town,
+            user_address,
+            area_id_path,
+            company_shop_name,
+            remark,
+            order_create_date,
+            item_cat_name_path,
+            item_cat_id_path,
+            sku,
+            sku_name,
+            appoint_date,
+            service_item_name,
+            create_by,
+            create_date,
+            quarter,
+            product_name,
+            product_value
+		)VALUES (
+			#{orderNo},
+			#{saleOrderNo},
+            #{serviceTypeName},
+            #{serviceTypeCode},
+            #{companyName},
+            #{brandName},
+            #{brandId},
+            #{userName},
+            #{userMobile},
+            #{userProvince},
+            #{userCity},
+            #{userCounty},
+            #{userTown},
+            #{userAddress},
+            #{areaIdPath},
+            #{companyShopName},
+            #{remark},
+            #{orderCreateDate},
+            #{itemCatNamePath},
+            #{itemCatIdPath},
+            #{sku},
+            #{skuName},
+            #{appointDate},
+            #{serviceItemName},
+            #{createBy},
+            #{createDt},
+            #{quarter},
+            #{productName},
+            #{productValue}
+		)
+    </insert>
+    <update id="updateTransferResult">
+		UPDATE
+			jd_home_order_info
+		SET
+			process_flag = #{processFlag},
+			process_time = process_time+1,
+			<if test="orderId != null and orderId > 0">
+				kkl_order_id = #{kklOrderId},
+				kkl_order_no = #{kklOrderNo},
+			</if>
+			process_comment = #{processComment},
+			update_date = #{updateDt}
+	  	WHERE
+	  		id = #{id}
+	</update>
+	<update id="updateOrderStatus">
+		UPDATE
+			jd_home_order_info
+		SET
+			order_status = #{status}
+		WHERE
+			id = #{id}
+	</update>
+	<update id="cancelledOrder">
+		UPDATE
+			weber_order_info
+		SET
+			process_flag = #{processFlag},
+			process_time = process_time+1,
+			update_date = #{updateDt},
+			process_comment = #{processComment},
+			update_by = #{updater}
+	  	WHERE
+	  		id = #{b2bOrderId}
+	</update>
+
+	<select id="getList" resultType="com.kkl.kklplus.b2b.jdhome.entity.OrderInfo" >
+		SELECT
+			id,
+			order_no,
+			sale_order_no,
+			service_type_name
+			service_type_code,
+			company_name,
+			brand_name,
+			brand_id,
+			user_name,
+			user_mobile,
+			CONCAT(user_province,' ',user_city,' ',user_county,' ',user_town,user_address) as 'userAddress',
+			remark,
+			sku,
+			sku_name,
+			product_name,
+			process_flag,
+			process_time,
+			process_comment,
+			quarter,
+			create_date as 'createDt'
+		FROM
+			jd_home_order_info
+		<where>
+			<choose>
+				<when test="beginCreateDt != null ">
+					<choose>
+						<when test="endCreateDt != null">
+							AND create_date between #{beginCreateDt} and #{endCreateDt}
+						</when>
+						<otherwise>
+							AND create_date >= #{beginCreateDt}
+						</otherwise>
+					</choose>
+				</when>
+				<otherwise>
+					<if test="endCreateDt != null">
+						AND create_date &lt;=  #{endCreateDt}
+					</if>
+				</otherwise>
+			</choose>
+			AND process_flag BETWEEN 0 AND 3
+			<if test="processFlags != null">
+				AND process_flag in
+				<foreach collection="processFlags"  item="processFlag" open="(" close=")" separator=",">
+					#{processFlag.value}
+				</foreach>
+			</if>
+			<if test="parentBizOrderId != null and parentBizOrderId != ''">
+				AND order_no LIKE CONCAT(#{parentBizOrderId}, '%')
+			</if>
+			<if test="userName != null and userName != ''">
+				AND user_name LIKE CONCAT(#{userName}, '%')
+			</if>
+			<if test="userMobile != null and userMobile != ''">
+				AND user_mobile LIKE CONCAT(#{userMobile}, '%')
+			</if>
+			<if test="userAddress != null and userAddress != ''">
+				AND CONCAT(user_province,' ',user_city,' ',user_county,' ',user_town,user_address) LIKE CONCAT('%', #{userAddress}, '%')
+			</if>
+			<if test="brand != null and brand != ''">
+				AND brand_name LIKE CONCAT('%',#{brand},'%')
+			</if>
+		</where>
+		ORDER BY id
+	</select>
+	<select id="findOrdersProcessFlag" resultType="com.kkl.kklplus.b2b.jdhome.entity.OrderInfo">
+		SELECT
+			id,
+			order_no,
+			process_flag
+		FROM
+			jd_home_order_info
+		<where>
+			<if test="orderTransferResults != null and orderTransferResults.size > 0">
+				<choose>
+					<when test="orderTransferResults.size == 1">
+						id = #{orderTransferResults[0].b2bOrderId}
+					</when>
+					<otherwise>
+						id in
+						<foreach collection="orderTransferResults" item="result" open="(" close=")" separator=",">
+							#{result.b2bOrderId}
+						</foreach>
+					</otherwise>
+				</choose>
+			</if>
+		</where>
+		<if test="orderTransferResults == null or orderTransferResults.size == 0">
+			limit 0
+		</if>
+	</select>
+    <select id="getIdByOrderNo" resultType="java.lang.Long">
+		SELECT
+			id
+		FROM
+			jd_home_order_info
+		WHERE
+			order_no = #{orderNo}
+		LIMIT 1
+	</select>
+	<select id="getOrderByOrderNo" resultType="com.kkl.kklplus.b2b.jdhome.entity.OrderInfo">
+		SELECT
+			id,
+			kkl_order_id,
+			order_status
+		FROM
+			jd_home_order_info
+		WHERE
+			order_no = #{orderNo}
+		LIMIT 1
+	</select>
+</mapper>

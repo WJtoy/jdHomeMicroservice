@@ -1,0 +1,42 @@
+{
+  "hints": [],
+  "groups": [
+    {
+      "sourceType": "com.kkl.kklplus.b2b.jdhome.config.B2BJdProperties",
+      "name": "jd",
+      "type": "com.kkl.kklplus.b2b.jdhome.config.B2BJdProperties"
+    },
+    {
+      "sourceType": "com.kkl.kklplus.b2b.jdhome.config.B2BJdProperties",
+      "name": "jd.authorization-config",
+      "sourceMethod": "getAuthorizationConfig()",
+      "type": "com.kkl.kklplus.b2b.jdhome.config.B2BJdProperties$AuthorizationConfig"
+    },
+    {
+      "sourceType": "com.kkl.kklplus.b2b.jdhome.config.B2BJdProperties",
+      "name": "jd.site",
+      "sourceMethod": "getSite()",
+      "type": "com.kkl.kklplus.b2b.jdhome.config.B2BJdProperties$SiteInfo"
+    },
+    {
+      "sourceType": "com.kkl.kklplus.b2b.jdhome.config.B2BJdProperties",
+      "name": "jd.thread-pool",
+      "sourceMethod": "getThreadPool()",
+      "type": "com.kkl.kklplus.b2b.jdhome.config.B2BJdProperties$ThreadPoolProperties"
+    }
+  ],
+  "properties": [
+    {
+      "sourceType": "com.kkl.kklplus.b2b.jdhome.config.B2BJdProperties",
+      "name": "jd.b2b-config-url",
+      "description": "b2b配置路由微服务HTTP路径",
+      "type": "java.lang.String"
+    },
+    {
+      "sourceType": "com.kkl.kklplus.b2b.jdhome.config.B2BJdProperties",
+      "defaultValue": "",
+      "name": "jd.cancel-flag-str",
+      "type": "java.lang.String"
+    }
+  ]
+}

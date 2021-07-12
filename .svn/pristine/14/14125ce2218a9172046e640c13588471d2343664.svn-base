@@ -1,0 +1,18 @@
+package com.kkl.kklplus.b2b.jdhome.entity;
+
+import com.kkl.kklplus.entity.b2b.common.B2BBase;
+import lombok.Data;
+
+
+@Data
+public class JdHomeOrderAppointed extends B2BBase<JdHomeOrderAppointed>{
+
+    //识别码,可为空
+    public String venderCode;
+    public String orderNo;//任务工单号
+    public String masterName;//(配送)师傅姓名
+    public String masterPhone;//(配送)师傅电话
+    public Long bookDate;//预约时间
+    public Long operateTime;//操作时间
+
+}

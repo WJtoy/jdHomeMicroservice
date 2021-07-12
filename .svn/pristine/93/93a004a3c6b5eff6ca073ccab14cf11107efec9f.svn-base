@@ -1,0 +1,274 @@
+package com.kkl.kklplus.b2b.jdhome.service;
+
+import com.google.common.collect.Lists;
+import com.jd.open.api.sdk.domain.jjfw.OrderProcessService.response.uploadFinishImg.ResultInfo;
+import com.jd.open.api.sdk.request.jjfw.HomefwTaskFinishRequest;
+import com.jd.open.api.sdk.request.jjfw.HomefwTaskUploadFinishImgRequest;
+import com.jd.open.api.sdk.response.jjfw.HomefwTaskBookOndoorResponse;
+import com.jd.open.api.sdk.response.jjfw.HomefwTaskFinishResponse;
+import com.jd.open.api.sdk.response.jjfw.HomefwTaskUploadFinishImgResponse;
+import com.kkl.kklplus.b2b.jdhome.entity.*;
+import com.kkl.kklplus.b2b.jdhome.mapper.OrderCompletedMapper;
+import com.kkl.kklplus.b2b.jdhome.mapper.OrderFinishPicMapper;
+import com.kkl.kklplus.b2b.jdhome.mapper.PicUploadMapper;
+import com.kkl.kklplus.b2b.jdhome.utils.DateUtils;
+import com.kkl.kklplus.b2b.jdhome.utils.JdHomeUtils;
+import com.kkl.kklplus.b2b.jdhome.utils.QuarterUtils;
+import com.kkl.kklplus.common.exception.MSErrorCode;
+import com.kkl.kklplus.common.response.MSResponse;
+import com.kkl.kklplus.entity.b2b.common.B2BProcessFlag;
+import com.kkl.kklplus.entity.b2bcenter.rpt.B2BOrderProcesslog;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.util.List;
+
+/**
+ * @Auther wj
+ * @Date 2021/2/4 16:09
+ */
+@Service
+@Slf4j
+@Transactional(propagation = Propagation.NOT_SUPPORTED)
+public class OrderCompletedService extends B2BBaseService{
+
+    @Autowired
+    private B2BProcesslogService b2BProcesslogService;
+
+    @Autowired
+    private OrderCompletedMapper orderCompletedMapper;
+
+    @Autowired
+    private OrderFinishPicService orderFinishPicService;
+
+    @Autowired
+    private PicUploadService picUploadService;
+
+    @Autowired
+    private SysLogService sysLogService;
+
+
+    public MSResponse transformation(JdHomeOrderFinish jdHomeOrderFinish) {
+        OrderFinishPic orderFinishPic = new OrderFinishPic();
+        List<PictureUpload> listPic = uploadPics(jdHomeOrderFinish);
+            if (listPic !=null&&listPic.size()>0){
+                if (listPic.size()>4) {
+                    orderFinishPic.setBeforeCompletion1(listPic.get(0).getJdPictureUrl());
+                    orderFinishPic.setBeforeCompletion2(listPic.get(1).getJdPictureUrl());
+                    orderFinishPic.setBeforeCompletion3(listPic.get(3).getJdPictureUrl());
+                    orderFinishPic.setBeforeCompletion4(listPic.get(4).getJdPictureUrl());
+                    orderFinishPic.setAfterCompletion1(listPic.get(listPic.size() - 1).getJdPictureUrl());
+                    orderFinishPic.setAfterCompletion2(listPic.get(listPic.size() - 2).getJdPictureUrl());
+                    orderFinishPic.setAfterCompletion3(listPic.get(listPic.size() - 3).getJdPictureUrl());
+                    orderFinishPic.setAfterCompletion4(listPic.get(listPic.size() - 4).getJdPictureUrl());
+                }else {
+                        orderFinishPic.setBeforeCompletion1(listPic.get(listPic.size() - 1).getJdPictureUrl());
+                        orderFinishPic.setAfterCompletion1(listPic.get(listPic.size() - 1).getJdPictureUrl());
+                }
+            }else {
+                return new MSResponse<>(new MSErrorCode(1000, StringUtils.left("上传图片失败",255)));
+            }
+
+        taskUploadFinishImg(orderFinishPic);    //京东完工图片上传
+
+        orderComplete(jdHomeOrderFinish);    //京东完工
+        return  new MSResponse<>(MSErrorCode.SUCCESS);
+    }
+
+    /**
+     *
+     * @param jdHomeOrderFinish
+     * @return
+     */
+    private List<PictureUpload> uploadPics(JdHomeOrderFinish jdHomeOrderFinish) {
+        AdsDspUploadPicRequest adsDspUploadPicRequest = new AdsDspUploadPicRequest();
+        List<PictureUpload> listPic = Lists.newArrayList();
+        try {
+            for (String pic : jdHomeOrderFinish.getPics()) {
+                PictureUpload pictureUpload = new PictureUpload();
+                pictureUpload.setOrderNo(jdHomeOrderFinish.getOrderNo());
+                pictureUpload.setB2bOrderId(jdHomeOrderFinish.getB2bOrderId());
+                pictureUpload.setKklPictureUrl(pic);
+                byte[] bytes = doGetRequestForFile(pic);
+                adsDspUploadPicRequest.setParam1(bytes);
+                picUploadService.insert(pictureUpload);
+                AdsDspUploadPicResponse adsDspUploadPicResponse = this.executeJdAPI(adsDspUploadPicRequest);
+                AdsDspUploadPicResponse.ResultInfo resultInfo = adsDspUploadPicResponse.getReturnType();
+                if ("0".equals(adsDspUploadPicResponse.getCode()) && resultInfo != null && resultInfo.getData() != null) {
+                    pictureUpload.setJdPictureUrl(resultInfo.getData());
+                    pictureUpload.setProcessFlag(B2BProcessFlag.PROCESS_FLAG_SUCESS.value);
+                    listPic.add(pictureUpload);
+                } else {
+                    String errorMsg = "";
+                        if (resultInfo != null) {
+                            errorMsg = adsDspUploadPicResponse.getReturnType().getErrorMessage();
+                        } else {
+                            errorMsg = adsDspUploadPicResponse.getZhDesc();
+                        }
+                    pictureUpload.setProcessFlag(B2BProcessFlag.PROCESS_FLAG_FAILURE.value);
+                    pictureUpload.setProcessComment(errorMsg);
+                }
+                    picUploadService.updateProcessFlag(pictureUpload);
+            }
+        }catch (Exception e) {
+                log.error("完成图片上传失败:{}", e.getMessage());
+            String json = JdHomeUtils.toJson(adsDspUploadPicRequest);
+            sysLogService.insert(1L, json,e.getMessage(),
+                    "完成图片上传失败Exception", adsDspUploadPicRequest.getApiMethod(), "POST");
+            }
+        return listPic;
+    }
+
+    /**
+     * 完工图片接口
+     * @param orderFinishPic
+     */
+    public void taskUploadFinishImg(OrderFinishPic orderFinishPic){
+        HomefwTaskUploadFinishImgRequest homefwTaskUploadFinishImgRequest = new HomefwTaskUploadFinishImgRequest();
+        homefwTaskUploadFinishImgRequest.setBeforeCompletion1(orderFinishPic.getBeforeCompletion1());
+        homefwTaskUploadFinishImgRequest.setBeforeCompletion2(orderFinishPic.getBeforeCompletion4()==null?"":orderFinishPic.getBeforeCompletion4());
+        homefwTaskUploadFinishImgRequest.setBeforeCompletion3(orderFinishPic.getBeforeCompletion4()==null?"":orderFinishPic.getBeforeCompletion4());
+        homefwTaskUploadFinishImgRequest.setBeforeCompletion4(orderFinishPic.getBeforeCompletion4()==null?"":orderFinishPic.getBeforeCompletion4());
+        homefwTaskUploadFinishImgRequest.setAfterCompletion1(orderFinishPic.getAfterCompletion1());
+        homefwTaskUploadFinishImgRequest.setAfterCompletion2(orderFinishPic.getAfterCompletion4()==null?"":orderFinishPic.getAfterCompletion4());
+        homefwTaskUploadFinishImgRequest.setAfterCompletion3(orderFinishPic.getAfterCompletion4()==null?"":orderFinishPic.getAfterCompletion4());
+        homefwTaskUploadFinishImgRequest.setAfterCompletion4(orderFinishPic.getAfterCompletion4()==null?"":orderFinishPic.getAfterCompletion4());
+        homefwTaskUploadFinishImgRequest.setOrderNo(orderFinishPic.getOrderNo());
+        B2BOrderProcesslog processlog = new B2BOrderProcesslog();
+        processlog.setInterfaceName(homefwTaskUploadFinishImgRequest.getApiMethod());
+        processlog.setCreateById(1L);
+        processlog.setUpdateById(1L);
+        processlog.preInsert();
+        processlog.setQuarter(QuarterUtils.getQuarter(processlog.getCreateDt()));
+        try {
+            b2BProcesslogService.insert(processlog);
+            orderFinishPicService.insert(orderFinishPic);
+            HomefwTaskUploadFinishImgResponse response = this.executeJdAPI(homefwTaskUploadFinishImgRequest);
+            processlog.setResultJson(response.getMsg());
+            ResultInfo resultInfo = response.getReturnType();
+            if ("0".equals(response.getCode()) && resultInfo != null &&100 == resultInfo.getResultCode()){
+                processlog.setProcessFlag(B2BProcessFlag.PROCESS_FLAG_SUCESS.value);
+                orderFinishPic.setProcessFlag(B2BProcessFlag.PROCESS_FLAG_SUCESS.value);
+            }else {
+                String errorMsg = "";
+                if( resultInfo != null ){
+                    errorMsg = response.getReturnType().getErrMsg();
+                }else {
+                    errorMsg = response.getZhDesc();
+                }
+                processlog.setProcessFlag(B2BProcessFlag.PROCESS_FLAG_FAILURE.value);
+                processlog.setProcessComment(errorMsg);
+                orderFinishPic.setProcessFlag(B2BProcessFlag.PROCESS_FLAG_FAILURE.value);
+                orderFinishPic.setProcessComment(errorMsg);
+            }
+            b2BProcesslogService.updateProcessFlag(processlog);
+            orderFinishPicService.updateProcessFlag(orderFinishPic);
+        }catch (Exception e){
+            log.error("完成图片上传失败:{}", e.getMessage());
+            String json = JdHomeUtils.toJson(homefwTaskUploadFinishImgRequest);
+            sysLogService.insert(1L, json,e.getMessage(),
+                    "完成图片上传失败Exception", homefwTaskUploadFinishImgRequest.getApiMethod(), "POST");
+
+        }
+    }
+
+        public void orderComplete(JdHomeOrderFinish jdHomeOrderFinish){
+            HomefwTaskFinishRequest homefwTaskFinishRequest = new HomefwTaskFinishRequest();
+            homefwTaskFinishRequest.setOrderNo(jdHomeOrderFinish.getOrderNo());
+            homefwTaskFinishRequest.setOperateTime(DateUtils.formatDate(DateUtils.timeStampToDate(jdHomeOrderFinish.getOperateTime()),"yyyy-MM-dd HH:mm:ss"));
+            B2BOrderProcesslog processlog = new B2BOrderProcesslog();
+            processlog.setInterfaceName(homefwTaskFinishRequest.getApiMethod());
+            processlog.setCreateById(1L);
+            processlog.setUpdateById(1L);
+            processlog.preInsert();
+            processlog.setQuarter(QuarterUtils.getQuarter(processlog.getCreateDt()));
+            OrderCompleted orderCompleted = new OrderCompleted();
+            orderCompleted.setOrderNo(jdHomeOrderFinish.getOrderNo());
+            orderCompleted.setOperateTime(jdHomeOrderFinish.getOperateTime());
+            orderCompleted.setB2bOrderId(jdHomeOrderFinish.getB2bOrderId());
+            try {
+                b2BProcesslogService.insert(processlog);
+                orderCompletedMapper.insert(orderCompleted);
+                HomefwTaskFinishResponse  response = this.executeJdAPI(homefwTaskFinishRequest);
+                processlog.setResultJson(response.getMsg());
+                com.jd.open.api.sdk.domain.jjfw.OrderProcessService.response.finish.ResultInfo resultInfo = response.getResultInfo();
+                if ("0".equals(response.getCode()) && resultInfo != null &&100 == resultInfo.getResultCode()){
+                    processlog.setProcessFlag(B2BProcessFlag.PROCESS_FLAG_SUCESS.value);
+                    orderCompleted.setProcessFlag(B2BProcessFlag.PROCESS_FLAG_SUCESS.value);
+                }else {
+                    String errorMsg = "";
+                    if( resultInfo != null ){
+                        errorMsg = response.getResultInfo().getErrMsg();
+                    }else {
+                        errorMsg = response.getZhDesc();
+                    }
+                    processlog.setProcessFlag(B2BProcessFlag.PROCESS_FLAG_FAILURE.value);
+                    processlog.setProcessComment(errorMsg);
+                    orderCompleted.setProcessFlag(B2BProcessFlag.PROCESS_FLAG_FAILURE.value);
+                    orderCompleted.setProcessComment(errorMsg);
+                }
+                b2BProcesslogService.updateProcessFlag(processlog);
+                orderCompleted.preUpdate();
+                orderCompletedMapper.updateProcessFlag(orderCompleted);
+
+            } catch (Exception e) {
+                log.error("完成工单失败:{}", e.getMessage());
+                String json = JdHomeUtils.toJson(homefwTaskFinishRequest);
+                sysLogService.insert(1L, json,e.getMessage(),
+                        "抓取工单异常Exception", homefwTaskFinishRequest.getApiMethod(), "POST");
+            }
+        }
+
+
+    public final static byte[] doGetRequestForFile(String urlStr) {
+        InputStream is = null;
+        ByteArrayOutputStream os = null;
+        byte[] buff = new byte[1024];
+        int len = 0;
+        try {
+            URL url = new URL(urlStr);
+            HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+            conn.setRequestProperty("Content-Type", "plain/text;charset=utf-8");
+            conn.setRequestProperty("charset", "utf-8");
+            conn.setDoInput(true);
+            conn.setDoOutput(true);
+            conn.setRequestMethod("GET");
+            conn.setReadTimeout(1000);
+            conn.connect();
+            is = conn.getInputStream();
+            os = new ByteArrayOutputStream();
+            while ((len = is.read(buff)) != -1) {
+                os.write(buff, 0, len);
+            }
+            return os.toByteArray();
+        } catch (IOException e) {
+            log.error("发起请求出现异常:", e);
+            return null;
+        } finally {
+            if (is != null) {
+                try {
+                    is.close();
+                } catch (IOException e) {
+                    log.error("【关闭流异常】");
+                }
+            }
+            if (os != null) {
+                try {
+                    os.close();
+                } catch (IOException e) {
+                    log.error("【关闭流异常】");
+                }
+            }
+        }
+    }
+
+}

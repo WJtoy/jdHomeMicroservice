@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="com.kkl.kklplus.b2b.jdhome.mapper.OrderFinishPicMapper">
+
+
+    <insert id="insert" keyProperty="id" useGeneratedKeys="true">
+          INSERT INTO jd_home_order_finish_pic(
+            b2b_order_id,
+            order_no,
+            before_completion1,
+            before_completion2,
+            before_completion3,
+            before_completion4,
+            after_completion1,
+            after_completion2,
+            after_completion3,
+            after_completion4,
+			create_by,
+			create_date,
+			update_by,
+			quarter
+		) VALUES (
+			#{b2bOrderId},
+			#{orderNo},
+			#{beforeCompletion1},
+			#{beforeCompletion2},
+			#{beforeCompletion3},
+			#{beforeCompletion4},
+			#{afterCompletion1},
+			#{afterCompletion2},
+			#{afterCompletion3},
+			#{afterCompletion4},
+			#{createById},
+			#{createDt},
+			#{updateById},
+			#{quarter}
+		)
+    </insert>
+
+
+	<update id="updateProcessFlag">
+		UPDATE
+		jd_home_order_finish_pic
+		SET
+		process_flag    = #{processFlag},
+		update_date     = #{updateDt}
+		<if test="processComment != null and processComment != ''">
+			,process_comment = #{processComment}
+		</if>
+		WHERE
+		id= #{id}
+	</update>
+
+</mapper>

@@ -1,0 +1,13 @@
+package com.kkl.kklplus.b2b.jdhome.entity;
+
+import com.kkl.kklplus.entity.b2b.common.B2BBase;
+import lombok.Data;
+
+import java.util.List;
+
+@Data
+public class JdHomeOrderFinish extends B2BBase<JdHomeOrderFinish>{
+    private String orderNo;
+    private List<String> pics;
+    private Long operateTime;
+}

@@ -1,0 +1,116 @@
+---
+server:
+  port: 8920
+spring:
+  profiles: dev
+  application:
+    name: kklplus-b2b-jd-home
+  datasource:
+    driver-class-name: com.mysql.jdbc.Driver
+    type: com.zaxxer.hikari.HikariDataSource
+    url: jdbc:mysql://119.23.43.232:18355/kklplus_b2b_jd_home?useUnicode=true&characterEncoding=utf-8&allowMultiQueries=true&useSSL=false
+    username: b2bjdhome
+    password: h.JD.112
+    hikari:
+      minimumIdle: 20
+      maximumPoolSize: 50
+      autoCommit: true
+      idleTimeout: 300000
+      poolName: kklplus-web
+      maxLifetime: 1800000
+      connectionTimeout: 600000
+      connectionTestQuery: SELECT 1
+  rabbitmq:
+    host: 119.23.43.232
+    port: 37777
+    username: by
+    password: rabbitmq@BY123
+    publisher-confirms: true
+    cache:
+      connection:
+        mode: channel
+    listener:
+      simple:
+        auto-startup: true
+        acknowledge-mode: manual
+        concurrency: 1
+        max-concurrency: 1
+        prefetch: 1
+    template:
+      retry:
+        initial-interval: 5000
+        max-attempts: 3
+        max-interval: 50000
+        multiplier: 1
+eureka:
+  instance:
+    prefer-ip-address: true
+    metadata-map:
+      zone: dev
+      function: kklplus-b2b-jd-home
+  client:
+    serviceUrl:
+      defaultZone: http://dev:dev.123@localhost:8800/eureka/
+    healthcheck:
+      enabled: true
+info:
+  app:
+    name: ${spring.application.name}
+    desc: B2B JD HOME服务
+  version: '0.0.1'
+management:
+  security:
+    enabled: false
+    roles: SUPERUSER
+mybatis:
+  type-aliases-package: com.kkl.kklplus.entity.jdhome
+  mapper-locations: classpath*:/mapper/**/*Mapper.xml
+  configuration:
+    cache-enabled: true
+    map-underscore-to-camel-case: true
+logging:
+  level:
+    org.mybatis: debug
+    com.kkl.kklplus: debug
+pagehelper:
+  helper-dialect: mysql
+  reasonable: true
+  support-methods-arguments: true
+  params: count=countSql
+feign:
+  hystrix:
+    enabled: true
+hystrix:
+  command:
+    default:
+      execution:
+        isolation:
+          thread:
+            timeoutInMilliseconds: 10000
+jd:
+#正式环境
+  authorization-config:
+    url: https://api-dev.jd.com/routerjson
+#    url: https://api.jd.com/routerjson
+    app-key: 184DDD354A4C56BD26CF10247371C342
+    app-secret: e820645d1c724a588abb4dc37d2574e0
+    access-token: 7e0b022fc74c4169bea2f4240022b3d3
+    refresh-token: 20493b24e07f4d57a96e60f2af57069b
+    scheduleEnabled: false
+    cancelScheduleEnabled: false
+  ##线程池配置， 用于异步上传图片
+  thread-pool:
+    core-pool-size: 1
+    max-pool-size: 12
+    keep-alive-seconds: 60
+    queue-capacity: 25
+okhttp:
+  connect-timeout: 10
+  max-active: 100
+  keep-alive: 5
+  read-timeout: 100
+  write-timeout: 10
+  ping-interval: 0
+  retry-on-connection-failure: true
+
+

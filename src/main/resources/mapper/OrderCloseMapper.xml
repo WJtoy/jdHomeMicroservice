@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="com.kkl.kklplus.b2b.jdhome.mapper.OrderCloseMapper">
+    <insert id="insert" keyProperty="id" useGeneratedKeys="true">
+        insert into jd_home_order_close(
+        	b2b_order_id,
+			order_no,
+            reason,
+            create_by,
+            create_date,
+            quarter
+		)VALUES (
+			#{b2bOrderId},
+			#{orderNo},
+			#{reason},
+            #{createById},
+            #{createDt},
+            #{quarter}
+		)
+    </insert>
+	<update id="updateProcessResult">
+		UPDATE
+			jd_home_order_close
+		SET
+			process_flag = #{processFlag},
+			process_time = process_time+1,
+			<if test="processComment != null and processComment != ''">
+				process_comment = #{processComment},
+			</if>
+			update_date = #{updateDt}
+		WHERE
+			id = #{id}
+	</update>
+</mapper>
